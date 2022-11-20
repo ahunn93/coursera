@@ -1,0 +1,285 @@
+---
+title: "Linear Regression in R for Public Health - Imperial College London (Coursera)"
+output: html_notebook
+---
+
+## Introduction and Import
+
+Firstly, we are going to import the data using the *read.csv* function. Ensure your working directory has been appropriately set (using *setwd* or by creating a project) for the coding to work.
+
+```{r}
+COPD <- read.csv("COPD_student_dataset.csv")
+
+View(COPD)
+```
+
+## Assessing distributions and calculating the correlation coefficient in R
+
+For this exercise, we are interested in two variables: MWT1Best (best walking distance) and FEV1 (lung function). Create a histogram of MWT1Best using the *hist* function.
+
+```{r}
+hist(COPD$MWT1Best, main = "Histogram of MWT1Best", xlab = "MWT1Best", breaks = 12)
+```
+
+General conclusion is that the distribution is relatively symmetric, but we should look closer at the high outlier above 650 through subsetting.
+
+```{r}
+subset(COPD, MWT1Best > 650)
+```
+
+Next, we will pull both high (\> 650) and low values (\< 150) using the **AND ('\|')** operator.
+
+```{r}
+subset(COPD, MWT1Best > 650 | MWT1 < 150)
+```
+
+Create a histogram for FEV1.
+
+```{r}
+hist(COPD$FEV1, main = "Histogram of FEV1", xlab = "FEV1")
+```
+
+To look at all of the descriptive statistics together, we will use the *list* function (including the *summary*, *sd*, *range*, and *IQR* functions).
+
+```{r}
+list("Summary" = summary(COPD$MWT1Best), "Mean" = mean(COPD$MWT1Best, na.rm = TRUE), "Standard Deviation" = sd(COPD$MWT1Best, na.rm = TRUE), "Range" = range(COPD$MWT1Best, na.rm = TRUE), "Inter-Quartile Range" = IQR(COPD$MWT1Best, na.rm = TRUE))
+```
+
+Do the same for FEV1.
+
+```{r}
+list("Summary" = summary(COPD$FEV1), "Mean" = mean(COPD$FEV1, na.rm = TRUE), "Standard Deviation" = sd(COPD$FEV1, na.rm = TRUE), "Range" = range(COPD$FEV1, na.rm = TRUE), "Inter-Quartile Range" = IQR(COPD$FEV1, na.rm = TRUE))
+```
+
+Plot the two variables on a scatterplot and calculate the correlation coeffecient.
+
+```{r}
+plot(COPD$FEV1, COPD$MWT1Best, xlab = "FEV1", ylab = "MWT1Best")
+cor.test(COPD$FEV1, COPD$MWT1Best, use = "complete.obs", method = "pearson")
+```
+
+## Practice with R: Why Spearman's and Pearson's may differ slightly
+
+**Coursera Instructions**: You've just looked at how to check and assess the association between walking distance (MWT1best) and lung function (FEV1) in COPD patients. In this e-tivity you're going to repeat the steps from 2.03 but this time looking at the association between walking distance (MWT1best) and age (AGE).
+
+A useful first step is to look at the distribution of the data for these variables. This helps you get a feel for your data and understand if any relevant assumptions you might need later on are satisfied. It also allows you to identify any impossible or unusual values. Have a go at this yourselves in R.
+
+It's also informative to summarise your data. What are the typical statistics we use to describe continuous outcomes such as walking distance and age? Have a go at calculating appropriate summary statistics in R for MWT1best and AGE.
+
+The final step before quantifying the relationship is to examine a visual plot of the relationship between walking distance and age. What do you think the best plot is for this? Can you produce such a plot in R? What are you looking for in this plot?
+
+1.  Now calculate the association between MWT1best and AGE. After your exploration of the data what do you think the most appropriate statistic is here? Are all necessary conditions satisfied? Calculate using R.
+2.  Examine, interpret and share your results.
+
+```{r}
+hist(COPD$AGE, main = "Histogram of Age", xlab = "Age")
+
+list("Summary" = summary(COPD$AGE), "Mean" = mean(COPD$AGE, na.rm = TRUE), "Standard Deviation" = sd(COPD$AGE, na.rm = TRUE), "Range" = range(COPD$AGE, na.rm = TRUE), "Inter-Quartile Range" = IQR(COPD$AGE, na.rm = TRUE))
+```
+
+## How to fit a regression model in R
+
+To run a linear regression in R, we'll use the function *lm()*. The basic format is **lm(outcome ~ predictor, data = dataframe)**. In order to manipulate/investigate the model, we need to store this as an object (i.e., vector). The basic format for this is **vector <- linear regression model**. The first regression we'll run will explore if lung function is a predictor of walking distance in COPD patients. We can use the *summary()* function to display basic output as well as the *confint()* function to view the 95% CI. Finally, we can use the *plot()* function to check model assumptions.
+
+```{r}
+MWT1Best_FEV1 <- lm(MWT1Best ~ FEV1, data = COPD)
+summary(MWT1Best_FEV1)
+
+confint(MWT1Best_FEV1)
+
+plot(MWT1Best_FEV1)
+```
+
+## Fitting the Multiple Regression in R
+
+We will use the same function as we did for a single variable regression model for multiple regression with some slight adjustment. The general format is **lm(outcome ~ predictor1 + predictor2 ..., data = dataframe)**. We will practice this by examining whether lung function and age are predictors of walking distance in COPD patients.
+
+```{r}
+MWT1Best_FEV1_AGE <- lm(MWT1Best ~ FEV1 + AGE, data = COPD)
+summary(MWT1Best_FEV1_AGE)
+confint(MWT1Best_FEV1_AGE)
+plot(MWT1Best_FEV1_AGE)
+```
+
+## Practice with R: Repeating the Regression Model
+
+**Coursera Instructions**: In the previous item, you looked at how to fit a multiple linear regression model to quantify the relationship between walking distance (MWT1best) and the two predictor variables, lung function (FEV1) and age (AGE), in COPD patients. In this e-tivity you’re going to repeat the steps from the video lecture Multiple Regression, but this time replace FEV1 with FVC. FVC is another measure of lung capacity: it is the total volume of air that a patient can forcibly exhale in one breath.
+
+So, you’re going to fit a multiple linear regression model to examine the relationship between walking distance (MWT1best), FVC (FVC) and age (AGE).
+
+Before you do that it’s helpful to go back a step. You already know what the impact of age is on walking distance from practising fitting the linear regression, but - what about the relationship between walking distance and FVC? It’s a good idea to fit this model first. If you do, you’ll be able to compare the impact of including both predictors in your model like you did previously. Do this yourself in R.
+```{r}
+MWT1Best_FVC <- lm(MWT1Best ~ FVC, data = COPD)
+summary(MWT1Best_FVC)
+confint(MWT1Best_FVC)
+plot(MWT1Best_FVC)
+```
+
+Once you’ve done that, you can fit the multiple regression model.  Remember that walking distance (MWT1best) is the outcome variable and AGE and FVC are the predictor variables.
+
+This produces more output than you need, so for now just focus on the regression coefficients. Identify the α and β coefficients for this model. Note you now have two β coefficients to interpret. How do these coefficients compare with the coefficients in the models with just one predictor?
+
+What about the adjusted R2 statistic? Can you remember why you should look at the adjusted-R2 statistic in this scenario and not the R2 statistic?
+
+```{r}
+MWT1Best_FVC_AGE <- lm(MWT1Best ~ FVC + AGE, data = COPD)
+summary(MWT1Best_FVC_AGE)
+confint(MWT1Best_FVC_AGE)
+plot(MWT1Best_FVC_AGE)
+```
+## How to assess key features of a dataset in R
+You can see how many rows and columns are in the data using the *dim()* command:
+```{r}
+dim(COPD)
+```
+By printing the first few rows using the *head()* command, we can get a better idea about what variables are in the data:
+```{r}
+head(COPD)
+```
+The *class()* command is used to check the type of a given variable:
+```{r}
+class(COPD$AGE)
+```
+The *summary()* command gives a summary of the variable:
+```{r}
+summary(COPD$AGE)
+```
+As with prior models, variables can be examined graphically using the *hist()* command.
+```{r}
+hist(COPD$AGE)
+```
+Take a look at a categorical variable, COPDSEVERITY:
+```{r}
+class(COPD$COPDSEVERITY)
+table(COPD$COPDSEVERITY, exclude = NULL)
+```
+The argument of "exclude = NULL) tells R to include missing values. There are no missing values for this variable. With binary variables, R will treat these numbers as integers by default. We should always tell R that the variable is meant to be categorical using the following procedure:
+```{r}
+class(COPD$gender)
+COPD$gender <- as.factor(COPD$gender)
+class(COPD$gender)
+```
+We can view the factor variable in a table the same as we did for the prior variable:
+```{r}
+table(COPD$gender)
+```
+We should always perform these inspections before we jump into an analyses.
+
+## How to check your data in R
+Most common data types in R include:
+
+Type      | Description
+----------|---------------
+Numeric   | Decimal values
+Integer   | Numeric value with no fraction
+Character | Text/String variables, enclosed by apostrophes
+Logical   | Objects (TRUE or FALSE) that encode a logic
+Factor    | Categorical/Nominal variables, with levels of data
+
+Let's check a couple of variables for the model **MWT1Best = $\alpha$ + $\beta$copd**:
+```{r}
+class(COPD$MWT1Best)
+class(COPD$copd)
+```
+Only MWT1Best should be an integer, copd should be a factor. We need to correct this as we did before:
+```{r}
+COPD$copd <- as.factor(COPD$copd)
+class(COPD$copd)
+```
+To visualize the structure of the data for this variable, we can use the *str()* function:
+```{r}
+str(COPD$copd)
+```
+Now let's run a regression model we mentioned earlier in this section:
+```{r}
+lr1 <- lm(MWT1Best ~ copd, data=COPD) #Runs linear regression for **MWT1Best = $\alpha$ + $\beta$copd**
+summary(lr1) #View the output of the regression
+```
+There are some other ways that we can convert variable types:
+
+* If you want to change a variable to a numeric data type, use the *as.numeric()* command.
+* If you want to change a variable to a character data type, use the *as.character()* command.
+* If you want to change a variable to a integer data type, use the *as.integer()* command.
+
+When we ran our previous model, R automatically assigned the first level of the COPD category as the reference category. If we want to change the reference category, we can use the *relevel()* function:
+```{r}
+COPD$copd <- relevel(COPD$copd, ref = 3) #Changes the reference level to severity level 3
+lr1 <- lm(MWT1Best ~ copd, data = COPD) #Re-runs the model using the new reference category
+summary(lr1) #View the output of the new regression
+```
+Now we want to create a new variable, which indicates the presence of at least one comorbidity or the complete absence of comorbidities, based on the responses to the variables: Diabetes, muscular, hypertension, AtrialFib, and IHD. We will call this variable '*comorbid*'. We need to follow a couple of steps:
+
+1. Make sure that the different variables are saved as the correct data type in R. All of these should be binary variables (factors).
+```{r}
+#Check the class of all variables
+class(COPD$Diabetes)
+class(COPD$muscular)
+class(COPD$hypertension)
+class(COPD$AtrialFib)
+class(COPD$IHD)
+```
+2. All are currently integers, so change to factor and verify
+```{r}
+COPD$Diabetes <- as.factor(COPD$Diabetes)
+COPD$muscular <- as.factor(COPD$muscular)
+COPD$hypertension <- as.factor(COPD$hypertension)
+COPD$AtrialFib <- as.factor(COPD$AtrialFib)
+COPD$IHD <- as.factor(COPD$IHD)
+
+class(COPD$Diabetes)
+class(COPD$muscular)
+class(COPD$hypertension)
+class(COPD$AtrialFib)
+class(COPD$IHD)
+```
+3. Now, create a vector for comorbid. There will not be any data for it yet, but we can create a placeholder that is the same length as the other values. Once we have the vector created, we will create logic that will code 0 if there are no comorbidities present and 1 if at least one comorbidity is present.
+```{r}
+#Create vector with length of Diabetes
+comorbid <- length(COPD$Diabetes)
+
+#Assign a value of 1 in the comorbid vector if the variable if at least one of the conditions is present.
+comorbid[COPD$Diabetes == 1 | COPD$muscular == 1 | COPD$hypertension == 1 | COPD$AtrialFib == 1 | COPD$IHD == 1] <- 1
+
+#Assign a vlaue of 0 for any NA values in the vector
+comorbid[is.na(comorbid)] <- 0
+
+#Convert comorbid to a factor vector
+comorbid <- as.factor(comorbid)
+```
+We can review our data using either the *print()* function (to see all of the values) or the *str()* function (to view the structure of the data). Specific values can be examined using the *[]* symbols.
+```{r}
+print(comorbid)
+str(comorbid)
+comorbid[15] #Looks at the 15th value in the vector
+```
+Finally, to add the variable to the dataset, we can use the following syntax:
+```{r}
+COPD$comorbid <- comorbid
+```
+
+Let's say we want to create a correlation matrix with the variables of interest for our analysis. We can use the following syntax to accomplish this task:
+```{r}
+my_data <- COPD[,c("AGE", "PackHistory","FEV1", "FEV1PRED", "FVC", "CAT", "HAD", "SGRQ")] #Creates a new vector including the variables to be analyzed
+cor_matrix <- cor(my_data) #Create a correlation matrix of the variables that are to be analyzed
+cor_matrix #View the correlation matrix
+round(cor_matrix, 2) #Rounds the values of the matrix to 2 decimal places
+```
+
+We can also use the *pairs()* function to visually assess the correlation matrix:
+```{r}
+pairs(~AGE+PackHistory+FEV1+FEV1PRED+FVC+CAT+HAD+SGRQ, data = COPD)
+```
+
+We may also want to take a look at cross tabulations, such as whether the same people that have IHD have hypertension:
+```{r}
+CrossTable(COPD$hypertension, COPD$IHD)
+```
+
+## Practice with R: Run Multiple Regression
+Imagine that you have selected lung function (FEV1), age (AGE), gender (gender), COPD severity (COPDSEVERITY) and presence of any comorbidity (comorbid) as the final predictor variables for your multivariable model.
+
+```{r}
+lr2 <- lm(MWT1Best ~ FEV1 + AGE + gender + COPDSEVERITY + comorbid, data = COPD)
+summary(lr2)
+confint(lr2)
+```

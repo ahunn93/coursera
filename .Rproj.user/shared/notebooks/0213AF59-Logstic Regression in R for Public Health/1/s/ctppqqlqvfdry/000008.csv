@@ -1,0 +1,1 @@
+"0","hist(age, breaks = 12) #you can include a breaks argument to specify the number of bins"

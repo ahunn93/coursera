@@ -1,0 +1,3 @@
+"0","chol <- data[""chol""] #continuous variable"
+"0","gender <- as.factor(data[,""gender""]) #categorical variable"
+"0","dm <- as.factor(data[,""dm""])"

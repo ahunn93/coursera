@@ -1,0 +1,6 @@
+"0","age <- data[""age""]"
+"0","age_cat <- ifelse(age < 45, ""Under 45"","
+"0","                  ifelse(age >= 45 & age <= 64, ""45-64"","
+"0","                         ifelse(age >= 65 & age <= 74, ""65-74"","
+"0","                                ifelse(age >= 75, ""75 and Over"", NA))))"
+"0","age_by_gender <- table(age_cat, gender, exclude = NULL)"

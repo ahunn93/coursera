@@ -1,0 +1,5 @@
+"0","dm_by_age <- table (age, dm) #create a cross tabulation of age and diabetes status"
+"0","freq_table <- prop.table(dm_by_age, margin = 1) #output the frequencies of diabetes status by age"
+"0","odds <- freq_table[,""yes""]/freq_table[,""no""] #calculate the odds of having diabetes"
+"0","logodds <- log(odds) #calculate the log odds"
+"0","plot(rownames(freq_table), logodds) #plot the ages found in the sample against the log odds of having diabetes"

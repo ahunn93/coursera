@@ -1,0 +1,17 @@
+"0","round(100*prop.table(dm_by_location, margin = 2), digits = 1)
+"
+"1","     location
+"
+"1","dm   "
+"1"," Buckingham"
+"1"," Louisa"
+"1","
+  no "
+"1","       83.7"
+"1","   85.5"
+"1","
+  yes"
+"1","       16.3"
+"1","   14.5"
+"1","
+"

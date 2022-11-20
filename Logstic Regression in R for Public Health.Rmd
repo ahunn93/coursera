@@ -1,0 +1,328 @@
+---
+title: "Logstic Regression in R for Public Health"
+output: html_notebook
+---
+
+# Preparing the Data for Logistic Regression
+Before we can dive into our analysis, we need to take a look at our variables using the skills and techniques discussed in the prior course. In addition to those methods, we also need to look at cross tabulations to see how the individual variables relate to our binary outcome variable. Cross tabulation can primarily be used for dichotomous variables (or those with fewer categories). For continuous variables, we can plot the continuous variables against the log odds of diabetes. We should also look at a distribution of these continuous variables with the number of patients of each age. An alternative is to create bins or groupings for plotting or cross tabulations. Often these will require trial and error to get them right. As we group variables into categories we also reduce the information we have available.
+```{r}
+data <- read.csv("diabetes.csv", header = TRUE, sep = ",")
+dim(data) #check that the import worked properly (this will give the number of rows then the number of columns)
+colnames(data) #gives us the column names read into the data
+```
+
+Next, we can create variables in R (if we want) rather than refer directly to the column throughout our coding. We should also stipulate the type of variable we are creating.
+```{r}
+chol <- data["chol"] #continuous variable
+gender <- as.factor(data[,"gender"]) #categorical variable
+dm <- as.factor(data[,"dm"])
+```
+
+We'll now create a table to see the breakdown of gender.
+```{r}
+gt <- table(gender) #stores the tabulation for further manipulation
+addmargins(gt) #adds margins summing up the totals and printing the results
+```
+
+As the British teacher puts it, it's incredibly annoying that it doesn't give percentages. This can be done simply, though.
+```{r}
+round(prop.table(gt), digits = 3) #proportions rounded to the third decimal place
+round(100*prop.table(gt), digits = 1) #make it even easier with percentages rounded to first decimal place
+```
+
+Bear in mind, the table excludes missing values by default. We must add an argument to our prior syntax to include those missing items.
+```{r}
+dm2 <- factor(dm, exclude = NULL) #create a new factor from the old
+table(dm2) #displays the counts including the missings (NAs)
+```
+
+The summary function, as used in the prior class, is best suited for our continuous variables. NOw this one does include our NAs.
+```{r}
+summary (chol)
+```
+
+We'll repeat this for the remaining variables we are interested in.
+```{r}
+height <- data[,"height"]
+weight <- data[,"weight"]
+summary(height)
+summary(weight)
+```
+
+For BMI calculations, we'll convert to SI units.
+```{r}
+height.si <- height*0.0254
+weight.si <- weight*0.453592
+bmi <- weight.si/height.si^2
+summary(bmi)
+```
+
+Often we need to categorize our data to make it useable for our analyses (even if it loses information). In this case, we are going to categorize our BMI data to meaningful categories.
+```{r}
+bmi_cat <- ifelse(bmi < 18.5, "underweight",
+                  ifelse(bmi >= 18.5 & bmi <= 25, "normal",
+                         ifelse(bmi > 25 & bmi <= 30, "overweight",
+                                ifelse(bmi > 30, "obese", NA))))
+table(bmi_cat, exclude = NULL) #verify the categorization worked appropriately and include NAs
+```
+
+Let's make our first cross tabulation examining the relationship between BMI category and diabetes.
+```{r}
+dm_by_bmi_cat <- table(bmi_cat, dm2, exclude = NULL) #frequencies of diabetes by BMI category
+dm_by_bmi_cat #print results
+round(100*prop.table(dm_by_bmi_cat, margin = 1), digits = 1) #with row percentages instead of frequencies. Margins argument specifies if the       frequencies are by rows or columns.
+```
+
+## Quiz for Cross Tabulation
+1. Now it’s your turn to have a go. It's always useful to describe the age-sex distribution of your set of patients. The first task is to make age groups from age, allowing for any missing values. To make it manageable, go for just four age groups: under 45, 45-64, 65-74 and 75 or over. Then tabulate age group by itself, followed by a cross-tabulation with gender. Finally, add the overall percentages to this cross-tab. What is the number of females under age 45?
+```{r}
+age <- data[,"age"]
+age_cat <- ifelse(age < 45, "Under 45",
+                  ifelse(age >= 45 & age <= 64, "45-64",
+                         ifelse(age >= 65 & age <= 74, "65-74",
+                                ifelse(age >= 75, "75 and Over", NA))))
+age_by_gender <- table(age_cat, gender, exclude = NULL)
+```
+
+2. Now, enter the percentage of all patients who are male and aged 65-74 rounded to nearest whole percentage.
+```{r}
+round(100*prop.table(age_by_gender), digits = 1)
+```
+
+3. Were there any missing values for age and/or gender?
+```{r}
+table(age, exclude = NULL)
+table(gender, exclude = NULL)
+```
+
+# Simple Logistic Regression in R
+We're going to start with the simplest model for diabetes (the null/empty model that is rarely useful) that has no predictors.
+```{r}
+glm(dm ~ 1, family = binomial (link = logit)) #The '1' indicates there is only an intercept term in the model.
+```
+
+To obtain the full output, we need to utilize the summary command.
+```{r}
+m <- glm(dm ~ 1, family = binomial (link = logit))
+summary(m)
+```
+
+A much more useful model is one that includes at least one or more predictors. First, let's take a look at the relationship between gender and diabetes.
+```{r}
+m <- glm(dm ~ gender, family = binomial (link = logit))
+summary(m)
+```
+
+We can do the same thing with a continuous predictor, such as age.
+```{r}
+m <- glm(dm ~ age, family = binomial (link = logit))
+summary(m)
+```
+
+The previous model assumes a linear relationship between age and the log odds of having diabetes. Let's check that assumption.
+```{r}
+dm_by_age <- table (age, dm) #create a cross tabulation of age and diabetes status
+freq_table <- prop.table(dm_by_age, margin = 1) #output the frequencies of diabetes status by age
+odds <- freq_table[,"yes"]/freq_table[,"no"] #calculate the odds of having diabetes
+logodds <- log(odds) #calculate the log odds
+plot(rownames(freq_table), logodds) #plot the ages found in the sample against the log odds of having diabetes
+```
+
+While gender in this example is well labeled, it's a good idea to check how R has entered gender into the model using the *contrasts()* command.
+```{r}
+contrasts(gender)
+```
+
+Suppose we want to compare the reverse (where male is the reference value). Let's check the order with the *levels()* commands.
+```{r}
+levels(gender)
+```
+
+We can then use the *relevel()* function to change the reference value. Then, let's re-run the regression.
+```{r}
+gender <- relevel(gender, ref = "male")
+levels(gender)
+m <- glm(dm ~ gender, family = binomial (link = logit))
+summary(m)
+```
+
+As we would expect, log(A/B) = -log(B/A). It is important to note that the glm command produces an R object with various elements, identified using the dollar symbol, that can be manipulated and exported. This is why we store glm as an object.
+```{r}
+m$coefficients #see the model's coefficients
+exp(m$coefficients) #produce the odds ratios for all coefficients
+```
+
+## Quiz for Interpreting Simple Logistic Regression
+1. Use the course data set and the R commands you've learned so far on this course to answer the following. Of those with a recorded diabetes status, what percentage of people from Buckingham have diabetes?
+```{r}
+location <- data[,"location"]
+dm_by_location <- table(dm, location) #don't include the 'exclude' argument since we only want those with a diabetes status
+dm_by_location
+round(100*prop.table(dm_by_location, margin = 2), digits = 1)
+```
+
+2. Now fit a logistic regression with “location” as the predictor variable. What are the log odds of having diabetes being from Louisa compared with Buckingham?  Give the answer (the log odds ratio) to two decimal places.
+```{r}
+m <- glm(dm ~ location, family = binomial (link = logit))
+summary(m)
+```
+
+3. Using the regression results from the previous item, is location a statistically significant predictor of having diabetes in our sample?
+
+4. Using the data from the previous item, what are the odds of having diabetes being from Louisa compared with Buckingham? (to two decimal places)
+```{r}
+exp(m$coefficients)
+```
+
+# Multiple Logistic Regression in R
+
+##Your Data and Preparing to Run Multiple Logistic Regression
+We want to understand each of the variables that we may use as predictors for our models. Let's first look at the distribution for age:
+```{r}
+hist(age, breaks = 12) #you can include a breaks argument to change the way it is grouped
+```
+
+Some people prefer fancier plots than histograms since they are affected by the choice of bins. One could utilize a kernel density plot (or just density plot):
+```{r}
+d <- density(age)
+plot(d, main = "") #gives warnings but the “main” argument suppresses the ugly default title
+```
+
+The above chart uses a kernel smoothing method using the weighted average of neighboring data. The bandwidth tells you the amount of data used during the averaging. One thing to bear in mind is that this method gives values that do not actually exist in the data based on the modelling.
+
+## Practice in R: Describing Variables
+For this activity, I’d like you to consider not just age and gender but also BMI, HDL and cholesterol. Have a go at summarizing each of them separately – numerically and with plots.
+
+The next step is to see how each variable relates to the outcome variable, i.e. having diabetes, just as we did with age earlier. For gender, this is just a cross-tab, but for BMI, HDL and cholesterol it’s not quite so straightforward. Have a go at that too.
+```{r}
+#chol
+summary(chol)
+chol.no.na <- chol[is.na(chol) == 0]
+d <- density(chol.no.na)
+plot(d, main = "")
+
+#HDL
+hdl <- data[,"hdl"]
+summary(hdl)
+hdl.no.na <- hdl[is.na(hdl) == 0]
+d <- density(hdl.no.na)
+plot(d, main = "")
+
+#BMI
+summary(bmi)
+bmi.no.na <- bmi[is.na(bmi) == 0]
+d <- density(bmi.no.na)
+plot(d, main = "")
+
+#gender
+gender <- as.factor(data[,"gender"]) #define gender as a variable
+dm_by_gender <- table(gender, dm) #cross tabulation - excluding the NA values because there are not many
+dm_by_gender_prop <- prop.table(dm_by_gender, margin = 1) #proportion of diabetes status by gender
+odds_gender <- dm_by_gender_prop[,"yes"]/dm_by_gender_prop[,"no"] #odds of having diabetes by gender
+logodds_gender <- log(odds_gender) #log odds calculation
+dotchart(logodds_gender)
+```
+
+The chart is not very useful. Another chart option will draw lines instead of dots, but also isn't very useful in this case.
+```{r}
+plot(as.factor(names(logodds_gender)), logodds_gender)
+```
+
+Let's take a look now at the relationship between age and diabetes:
+```{r}
+#we already wrote the code for age and dm_by_age earlier in this course
+dm_by_age_prop <- prop.table(dm_by_age, margin = 1)
+odds_age <- dm_by_age_prop[,"yes"]/dm_by_age_prop[,"no"]
+logodds_age <- log(odds_age)
+plot(rownames(dm_by_age_prop), logodds_age)
+
+#next we will look at this by the age groups we made earlier in the course
+dm_by_age_cat <- table(age_cat, dm)
+dm_by_age_cat_prop <- prop.table(dm_by_age_cat, margin = 1)
+odds_age_cat <- dm_by_age_cat_prop[,"yes"]/dm_by_age_cat_prop[,"no"]
+logodds_age_cat <- log(odds_age_cat)
+dotchart(logodds_age_cat)
+```
+
+Cholesterol example: Before looking at relationships between variables, we should look at our predictors first. Start with a distribution plot and running frequency tabulations. Let's take a look first at cholesterol.
+```{r}
+summary(chol)
+chol.no.na <- chol[is.na(chol)==0]
+d <- density(chol.no.na)
+plot(d, main = "")
+```
+
+## How to Run Multiple Logistic Regression in R
+Instructions: Now run a multiple regression model so you can see what the output looks like. I’d like you to fit a model with age, gender and BMI as predictors. The previous exploratory analyses will have told you how to include them. After running the model, there'll be a chance to debate the results with your peers in a Discussion Prompt.
+
+```{r}
+m <- glm(dm ~ age + gender + bmi, family=binomial (link=logit))
+summary(m)
+exp(confint(m))
+```
+
+## Quiz: Running A New Logistic Regression Model
+1. Using the same data set as before, now try another model with these predictor variables: age, cholesterol and insurance type.  The data set can be downloaded here.
+
+Enter the odds ratios for each predictor in the boxes below to two decimal places. Check whether each one is considered statistically significant at the conventional 5% threshold.
+```{r}
+chol <- data[,"chol"]
+insurance <- as.factor(data[,"insurance"])
+m <- glm(dm ~ age + chol + insurance, family = binomial(link = logit))
+summary(m)
+exp(m$coefficients)
+exp(confint(m))
+```
+
+# Assessing Model Fit
+Demonstration of null deviance and residual deviance:
+```{r}
+# design your logistic regression 
+full_model <- glm(dm ~ age + chol + insurance, family = binomial(link = logit)) 
+ 
+# analyse table of deviance 
+anova(full_model, test = "Chisq")
+```
+
+The fourth column shows the deviances of the models compared with the saturated model. The first (334.54) is the null deviance and each subsequent number is the deviance of the model with each new variable. The final value (289.28) is the deviance of the proposed model (with all three of our variables). This is the residual deviance. As expected, adding each new variable to our model explains the data better, thus reducing the deviance.
+
+To test whether each added parameter increases the deviance by a significant amount, we asked R to compare it with a chi-square value for the number of degrees of freedom lost. If the p-value is low, it indicates that the corresponding added variable causes a significant change in deviance, and thus is a better fitting model. It’s not at all essential that you understand why we use the chi-square distribution for this comparison – just that you know how to interpret the resulting p-value.
+
+In our case, adding the variables age and cholesterol significantly reduce the deviance and improve the model fit, as indicated by their low p-values, but including the insurance variable does not improve the model fit enough to justify the loss in degrees of freedom, as indicated by its high p-value of 0.2896.
+
+## Practice in R: Applying Backwards Elimination
+Various papers have established several risk factors for the development of diabetes, including age, BMI, cholesterol, HDL and blood pressure. 
+
+Your task now is to fit a model with those predictors (try both systolic and diastolic BP) and apply backwards elimination to remove any that are not statistically significant – just use the conventional p<0.05 for this.
+```{r}
+dm <- as.factor(data[,"dm"])
+insurance <- as.factor(data[,"insurance"])
+fh <- as.factor(data[,"fh"]) # 1=FH, 0=no FH 
+smoking <- as.factor(data[,"smoking"]) # 1,2,3 
+chol <- data[,'chol'] 
+hdl <- data[,'hdl'] 
+ratio <- data[,'ratio'] 
+location <- as.factor(data[,'location']) 
+age <- data[,'age'] 
+gender <- as.factor(data[,'gender']) 
+frame <- as.factor(data[,'frame']) 
+systolic <- data[,'bp.1s'] 
+diastolic <- data[,'bp.1d']
+
+model <- glm(dm ~ age + bmi + chol + hdl + systolic + diastolic, family = binomial(link = logit))
+summary(model)
+anova(model, test = "Chisq")
+```
+
+BP variables were not significant. Drop and re-test model.
+```{r}
+model2 <- glm(dm ~ age + bmi + chol + hdl, family = binomial(link = logit))
+summary(model2)
+anova(model2, test = "Chisq")
+```
+
+This time I’d like you to run the model with: age, BMI, cholesterol, HDL, systolic BP, and diastolic BP from earlier but also add in gender, location, frame, insurance, and smoking.
+```{r}
+model3 <- glm(dm ~ age + bmi + chol + hdl + systolic + diastolic + gender + location + frame + insurance + smoking, family = binomial(link=logit))
+summary(model3)
+```

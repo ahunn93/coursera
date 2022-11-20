@@ -1,0 +1,2 @@
+"0","d <- density(age)"
+"0","plot(d, main = """") #gives warnings but the “main” argument suppresses the ugly default title"
